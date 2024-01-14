@@ -1,0 +1,67 @@
+version: "3.8"
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - 2181:2181
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+    volumes:
+      - ./data/kafka:/var/run/docker.sock
+    environment:
+      - KAFKA_ADVERTISED_HOST_NAME=kafka
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CREATE_TOPICS=first:1:1,second:1:1
+  mongo1:
+    image: mongo
+    container_name: mongo1
+    command: mongod --port 27019
+    ports:
+      - "27019:27019"
+    volumes:
+      - ./mongo1:/data/db
+  mongo2:
+    image: mongo
+    container_name: mongo2
+    command: mongod --port 27018
+    ports:
+      - "27018:27018"
+    volumes:
+      - ./mongo2:/data/db
+  first:
+    build:
+      context: "./first"
+      dockerfile: Dockerfile
+    container_name: first
+    depends_on:
+      - kafka
+      - mongo1
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./first:/app
+      - ./first/node_modules:/app/node_modules
+    env_file:
+      - "./first/.env"
+  second:
+    build:
+      context: "./second"
+      dockerfile: Dockerfile
+    container_name: second
+    depends_on:
+      - kafka
+      - mongo2
+      - first
+    ports:
+      - "4001:4001"
+    volumes:
+      - ./second:/apps
+      - ./second/node_modules:/apps/node_modules
+    env_file:
+      - "./second/.env"
